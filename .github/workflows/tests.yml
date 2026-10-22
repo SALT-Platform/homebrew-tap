@@ -1,0 +1,68 @@
+name: tests
+
+# Installs the casks on clean GitHub-hosted Macs. On pull requests the change's
+# cask is laid over the tapped main branch; on main, on the weekly schedule and
+# on demand the exact one-line install a new teammate runs is used, unchanged.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 14 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  HOMEBREW_NO_ANALYTICS: "1"
+  HOMEBREW_NO_ENV_HINTS: "1"
+
+jobs:
+  style:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: brew style
+        run: .github/scripts/style.sh
+
+  install:
+    name: install (${{ matrix.arch }})
+    needs: style
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            os: macos-latest
+          - arch: intel
+            os: macos-15-intel
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: tap-src
+      - name: Use this change's cask
+        if: github.event_name == 'pull_request'
+        run: tap-src/.github/scripts/overlay-cask.sh tap-src
+      - name: brew install --cask salt-platform/tap/salt-code
+        run: tap-src/.github/scripts/install.sh
+        env:
+          # Auto-update would reset the tap and drop a pull request's overlaid cask.
+          HOMEBREW_NO_AUTO_UPDATE: ${{ github.event_name == 'pull_request' && '1' || '' }}
+      - name: Verify the installed app
+        run: tap-src/.github/scripts/verify-install.sh
+      - name: brew uninstall --zap --cask salt-code
+        run: brew uninstall --zap --cask salt-platform/tap/salt-code
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: install-${{ matrix.arch }}
+          path: |
+            install.log
+            launch.png
+          if-no-files-found: ignore
