@@ -15,7 +15,7 @@ cask "salt-code" do
   livecheck do
     url :url
     regex(/^salt-code-v(\d+(?:\.\d+)+)$/i)
-    strategy :github_latest
+    strategy :github_releases
   end
 
   depends_on macos: :ventura

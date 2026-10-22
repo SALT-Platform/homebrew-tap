@@ -4,6 +4,8 @@
 set -euo pipefail
 app="/Applications/SALT Code (Beta).app"
 exe="$app/Contents/MacOS/SALT Code (Beta)"
+# pgrep/pkill -f take a regex: match a literal substring with no metacharacters.
+proc="Contents/MacOS/SALT Code"
 want="$(brew info --cask --json=v2 salt-platform/tap/salt-code | jq -r ".casks[0].version")"
 
 test -d "$app"
@@ -27,11 +29,11 @@ spctl --assess --type execute -vv "$app" 2>&1 || true
 
 open "$app"
 for _ in $(seq 1 30); do
-  pgrep -f "$exe" >/dev/null && break
+  pgrep -f "$proc" >/dev/null && break
   sleep 1
 done
 sleep 10
-pgrep -f "$exe" >/dev/null || { echo "$app did not stay running" >&2; exit 1; }
+pgrep -f "$proc" >/dev/null || { echo "$app did not stay running" >&2; exit 1; }
 screencapture -x launch.png || true
-pkill -f "$exe" || true
+pkill -f "$proc" || true
 echo "verified $app $got ($arch)"

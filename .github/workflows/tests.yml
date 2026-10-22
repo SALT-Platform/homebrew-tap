@@ -16,7 +16,7 @@ permissions:
 
 concurrency:
   group: tests-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   HOMEBREW_NO_ANALYTICS: "1"
@@ -51,6 +51,9 @@ jobs:
         run: tap-src/.github/scripts/overlay-cask.sh tap-src
       - name: brew install --cask salt-platform/tap/salt-code
         run: tap-src/.github/scripts/install.sh
+        env:
+          # Auto-update would reset the tap and drop a pull request's overlaid cask.
+          HOMEBREW_NO_AUTO_UPDATE: ${{ github.event_name == 'pull_request' && '1' || '' }}
       - name: Verify the installed app
         run: tap-src/.github/scripts/verify-install.sh
       - name: brew uninstall --zap --cask salt-code
